@@ -1,90 +1,76 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
-import { getToken } from "next-auth/jwt";
-import { NextRequestWithAuth } from "next-auth/middleware";
+import { type NextRequest, NextResponse } from "next/server"
+import { getToken } from "next-auth/jwt"
 
-// Define public routes that don't require authentication
-const publicRoutes = [
-    "/",
-    "/login",
-    "/register",
-    "/auth/error",
-    "/auth/agency/register",
-    "/auth/agency/login",
-    "/api/auth/login",
-    "/api/auth/register",
-    "/api/auth/agency/register",
-    "/api/auth/check-role",
-];
+export async function middleware(req: NextRequest) {
+  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
+  const { pathname } = req.nextUrl
+  const host = req.headers.get("host") || ""
+  const subdomain = getSubdomain(host)
 
-// Define admin-only routes
-const adminRoutes = ["/dashboard/admin", "/dashboard/agencies", "/api/admin"];
+  // Public routes accessible without authentication
+  if (
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/api/auth") ||
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/register") ||
+    pathname === "/"
+  ) {
+    return NextResponse.next()
+  }
 
-// Define agency admin routes
-const agencyAdminRoutes = [
-    "/dashboard/agency",
-    "/dashboard/agency/users",
-    "/dashboard/agency/subscriptions",
-    "/api/agency/users",
-    "/api/agency/subscriptions",
-];
+  // Check if user is authenticated
+  if (!token) {
+    return NextResponse.redirect(new URL("/login", req.url))
+  }
 
-export default async function middleware(request: NextRequestWithAuth) {
-    const path = request.nextUrl.pathname;
+  // Admin routes
+  if (pathname.startsWith("/admin") && token.role !== "admin") {
+    return NextResponse.redirect(new URL("/", req.url))
+  }
 
-    // Allow access to public routes
-    if (publicRoutes.some((route) => path.startsWith(route))) {
-        return NextResponse.next();
+  // Agency routes
+  if (pathname.startsWith("/agency")) {
+    if (token.role !== "agency" && token.role !== "admin") {
+      return NextResponse.redirect(new URL("/", req.url))
     }
 
-    // Get the session token
-    const token = await getToken({ req: request });
-
-    // Redirect to login if no token is present
-    if (!token) {
-        const loginUrl = new URL("/login", request.url);
-        loginUrl.searchParams.set("callbackUrl", request.url);
-        return NextResponse.redirect(loginUrl);
+    // If agency user, check if they're accessing their own subdomain
+    if (token.role === "agency" && subdomain && token.agencySubdomain !== subdomain) {
+      return NextResponse.redirect(new URL("/", req.url))
     }
+  }
 
-    // Check role-based access
-    if (adminRoutes.some((route) => path.startsWith(route))) {
-        if (token.role !== "SUPER_ADMIN") {
-            return NextResponse.redirect(new URL("/dashboard", request.url));
-        }
-    }
+  // User routes
+  if (pathname.startsWith("/user") && token.role !== "user" && token.role !== "admin") {
+    return NextResponse.redirect(new URL("/", req.url))
+  }
 
-    if (agencyAdminRoutes.some((route) => path.startsWith(route))) {
-        if (token.role !== "AGENCY_ADMIN") {
-            return NextResponse.redirect(new URL("/dashboard", request.url));
-        }
-    }
+  // Add subdomain context to request
+  if (subdomain) {
+    const requestHeaders = new Headers(req.headers)
+    requestHeaders.set("x-subdomain", subdomain)
+    return NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    })
+  }
 
-    // Check store access for store users
-    if (path.startsWith("/dashboard/store/")) {
-        if (token.role === "AGENCY_USER") {
-            const storeId = path.split("/")[3];
-            if (storeId !== token.storeId) {
-                return NextResponse.redirect(
-                    new URL("/dashboard", request.url)
-                );
-            }
-        }
-    }
-
-    return NextResponse.next();
+  return NextResponse.next()
 }
 
-// Configure which routes to run middleware on
+// Helper function to extract subdomain from host
+function getSubdomain(host: string): string | null {
+  // Skip for localhost or direct domain access
+  if (host.includes("localhost") || !host.includes(".")) return null
+
+  const hostParts = host.split(".")
+  if (hostParts.length > 2) {
+    return hostParts[0]
+  }
+  return null
+}
+
 export const config = {
-    matcher: [
-        /*
-         * Match all request paths except for the ones starting with:
-         * - _next/static (static files)
-         * - _next/image (image optimization files)
-         * - favicon.ico (favicon file)
-         * - public folder
-         */
-        "/((?!_next/static|_next/image|favicon.ico|public/).*)",
-    ],
-};
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+}
