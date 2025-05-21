@@ -1,0 +1,271 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  AGENCY_ADMIN
+  AGENCY_USER
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  INACTIVE
+  EXPIRED
+  PENDING
+}
+
+// User model for authentication and access control
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  password      String
+  role          UserRole  @default(AGENCY_USER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  agency        Agency?   @relation(fields: [agencyId], references: [id])
+  agencyId      String?
+  stores        Store[]   @relation("StoreUsers")
+  managedStores Store[]   @relation("StoreManagers")
+  
+  @@index([email])
+}
+
+// Agency model for multi-tenant architecture
+model Agency {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  phone         String?
+  website       String?
+  slug          String    @unique
+  logo          String?
+  status        String    @default("ACTIVE")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  users         User[]
+  stores        Store[]
+  subscription  Subscription?
+}
+
+// Store model for each e-commerce store
+model Store {
+  id            String    @id @default(cuid())
+  name          String
+  slug          String    @unique
+  description   String?
+  logo          String?
+  currency      String    @default("USD")
+  active        Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  agency        Agency    @relation(fields: [agencyId], references: [id])
+  agencyId      String
+  users         User[]    @relation("StoreUsers")
+  managers      User[]    @relation("StoreManagers")
+  products      Product[]
+  categories    Category[]
+  orders        Order[]
+  customers     Customer[]
+  apiKeys       ApiKey[]
+  apiUsage      ApiUsage[]
+  subdomain     Subdomain?
+}
+
+// Category model for product categorization
+model Category {
+  id            String    @id @default(cuid())
+  name          String
+  slug          String
+  description   String?
+  image         String?
+  store         Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  storeId       String
+  products      Product[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([storeId, slug])
+  @@index([storeId])
+}
+
+// Product model for store products
+model Product {
+  id            String    @id @default(cuid())
+  name          String
+  slug          String
+  description   String?
+  price         Decimal   @db.Decimal(10, 2)
+  comparePrice  Decimal?  @db.Decimal(10, 2)
+  images        String[]
+  inventory     Int       @default(0)
+  store         Store     @relation(fields: [storeId], references: [id])
+  storeId       String
+  category      Category  @relation(fields: [categoryId], references: [id])
+  categoryId    String
+  orderItems    OrderItem[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([storeId, slug])
+  @@index([storeId])
+  @@index([categoryId])
+}
+
+// Customer model for store customers
+model Customer {
+  id            String    @id @default(cuid())
+  name          String
+  email         String
+  phone         String?
+  address       String?
+  city          String?
+  state         String?
+  postalCode    String?
+  country       String?
+  store         Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  storeId       String
+  orders        Order[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([storeId, email])
+  @@index([storeId])
+}
+
+// Order model for customer orders
+model Order {
+  id            String    @id @default(cuid())
+  orderNumber   String    @unique
+  total         Decimal   @db.Decimal(10, 2)
+  status        OrderStatus @default(PENDING)
+  customer      Customer  @relation(fields: [customerId], references: [id])
+  customerId    String
+  store         Store     @relation(fields: [storeId], references: [id])
+  storeId       String
+  items         OrderItem[]
+  payment       Payment?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([storeId])
+  @@index([customerId])
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  CANCELLED
+  REFUNDED
+}
+
+// OrderItem model for items in an order
+model OrderItem {
+  id            String    @id @default(cuid())
+  quantity      Int
+  price         Decimal   @db.Decimal(10, 2)
+  order         Order     @relation(fields: [orderId], references: [id])
+  orderId       String
+  product       Product   @relation(fields: [productId], references: [id])
+  productId     String
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+// Payment model for order payments
+model Payment {
+  id            String    @id @default(cuid())
+  amount        Decimal   @db.Decimal(10, 2)
+  status        PaymentStatus @default(PENDING)
+  provider      String    @default("stripe")
+  paymentIntentId String?
+  order         Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId       String    @unique
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+// Subscription model for agency subscriptions
+model Subscription {
+  id            String    @id @default(cuid())
+  status        SubscriptionStatus @default(PENDING)
+  plan          SubscriptionPlan
+  priceId       String
+  customerId    String
+  subscriptionId String
+  startDate     DateTime  @default(now())
+  endDate       DateTime?
+  agency        Agency    @relation(fields: [agencyId], references: [id])
+  agencyId      String    @unique
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+enum SubscriptionPlan {
+  BASIC
+  STANDARD
+  PREMIUM
+}
+
+// API Key model for store API access
+model ApiKey {
+  id            String    @id @default(cuid())
+  name          String
+  key           String    @unique
+  permission    String    @default("read") // read, write, full
+  status        String    @default("active") // active, inactive
+  store         Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  storeId       String
+  lastUsed      DateTime?
+  usage         ApiUsage[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([storeId])
+}
+
+// API Usage model for tracking API usage
+model ApiUsage {
+  id            String    @id @default(cuid())
+  endpoint      String
+  method        String
+  store         Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  storeId       String
+  apiKey        ApiKey    @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+  apiKeyId      String
+  createdAt     DateTime  @default(now())
+
+  @@index([storeId])
+  @@index([apiKeyId])
+}
+
+// Subdomain model for store subdomains
+model Subdomain {
+  id            String    @id @default(cuid())
+  subdomain     String    @unique
+  customDomain  String?
+  status        String    @default("active") // active, inactive
+  store         Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  storeId       String    @unique
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
