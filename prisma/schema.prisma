@@ -1,0 +1,548 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  user
+  agency
+  admin
+}
+
+// Enhanced User model with AI preferences
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  password      String
+  emailVerified DateTime?
+  image         String?
+  role          Role    @default(user) // admin, agency, user, vendor, superadmin, staff
+  tenantId      String?   // For multi-tenant isolation
+  preferences   Json?     // AI preferences, dashboard settings
+  healthScore   Float?    // Customer health score
+  lastActive    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  accounts      Account[]
+  sessions      Session[]
+  
+  // Relations
+  agency        Agency?   @relation("AgencyToUser")
+  stores        Store[]   @relation("StoreToUser")
+  apiKeys       ApiKey[]
+  vendor        Vendor?   @relation("VendorToUser")
+  auditLogs     AuditLog[]
+  supportTickets SupportTicket[]
+  aiInteractions AIInteraction[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Enhanced Agency model with AI features
+model Agency {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  logo        String?
+  website     String?
+  subdomain   String?  @unique // For multi-tenant routing
+  userId      String   @unique
+  aiEnabled   Boolean  @default(true)
+  aiCredits   Int      @default(1000)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  user        User     @relation("AgencyToUser", fields: [userId], references: [id], onDelete: Cascade)
+  stores      Store[]
+  subscription Subscription?
+  campaigns   MarketingCampaign[]
+}
+
+model Subscription {
+  id          String   @id @default(cuid())
+  agencyId    String   @unique
+  plan        String   // free, basic, premium, enterprise
+  status      String   // active, inactive, cancelled
+  aiFeatures  Json?    // AI feature access levels
+  startDate   DateTime
+  endDate     DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  agency      Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+}
+
+// Enhanced Store model with AI and multi-channel support
+model Store {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  logo        String?
+  bannerImage String?
+  subdomain   String?  @unique // For multi-tenant routing
+  currency    String   @default("USD")
+  userId      String
+  agencyId    String?
+  vendorId    String?
+  isMarketplace Boolean @default(false)
+  commissionRate Float  @default(10)
+  aiEnabled   Boolean  @default(true)
+  channels    Json?    // Multi-channel integrations
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  domain     String?
+  // Relations
+  user        User     @relation("StoreToUser", fields: [userId], references: [id])
+  agency      Agency?  @relation(fields: [agencyId], references: [id])
+  vendor      Vendor?  @relation("VendorToStore", fields: [vendorId], references: [id])
+  products    Product[]
+  categories  Category[]
+  orders      Order[]
+  customers   Customer[]
+  apiKeys     ApiKey[]
+  analytics   Analytics[]
+  inventoryAlerts InventoryAlert[]
+  pricingSuggestions PricingSuggestion[]
+  campaigns   MarketingCampaign[]
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  image       String?
+  storeId     String
+  parentId    String?
+  aiTags      Json?    // AI-generated tags
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  parent      Category? @relation("CategoryToSubcategory", fields: [parentId], references: [id])
+  subcategories Category[] @relation("CategoryToSubcategory")
+  products    ProductCategory[]
+}
+
+// Enhanced Product model with AI features
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  price       Float
+  comparePrice Float?
+  cost        Float?
+  sku         String?
+  barcode     String?
+  images      String[]
+  storeId     String
+  vendorId    String?
+  isActive    Boolean  @default(true)
+  isFeatured  Boolean  @default(false)
+  quantity    Int      @default(0)
+  aiTags      Json?    // AI-generated tags and metadata
+  seoTitle    String?  // AI-generated SEO title
+  seoDescription String? // AI-generated SEO description
+  salesVelocity Float? // For inventory predictions
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  vendor      Vendor?  @relation("VendorToProduct", fields: [vendorId], references: [id])
+  categories  ProductCategory[]
+  orderItems  OrderItem[]
+  variants    ProductVariant[]
+  reviews     Review[]
+  pricingSuggestions PricingSuggestion[]
+  wishlistItems WishlistItem[]
+}
+
+model ProductCategory {
+  productId   String
+  categoryId  String
+  
+  // Relations
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category    Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  
+  @@id([productId, categoryId])
+}
+
+model ProductVariant {
+  id          String   @id @default(cuid())
+  productId   String
+  name        String
+  options     Json
+  price       Float
+  quantity    Int      @default(0)
+  sku         String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+// Enhanced Customer model with AI insights
+model Customer {
+  id          String   @id @default(cuid())
+  email       String
+  firstName        String?
+  lastName         String?
+
+  phone       String?
+  address     String?
+  city        String?
+  state       String?
+  postalCode  String?
+  country     String?
+  storeId     String
+  healthScore Float?   // AI-calculated health score
+  ltv         Float?   // Lifetime value prediction
+  churnRisk   Float?   // Churn prediction
+  segment     String?  // AI-generated customer segment
+  preferences Json?    // AI-learned preferences
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  orders      Order[]
+  reviews     Review[]
+  wishlist    WishlistItem[]
+  supportTickets SupportTicket[]
+  
+  @@unique([email, storeId])
+}
+
+// Enhanced Order model with funnel tracking
+model Order {
+  id              String   @id @default(cuid())
+  orderNumber     String   @unique
+  storeId         String
+  customerId      String?
+  status          String   // pending, processing, completed, cancelled, refunded
+  funnelStage     String?  // lead, cart, checkout, order, fulfilled
+  total           Float
+  subtotal        Float
+  tax             Float    @default(0)
+  shipping        Float    @default(0)
+  discount        Float    @default(0)
+  commission      Float    @default(0)
+  paymentStatus   String   // pending, paid, failed
+  paymentMethod   String?
+  channel         String?  // web, mobile, instagram, whatsapp, etc.
+  shippingAddress Json?
+  billingAddress  Json?
+  notes           String?
+  aiInsights      Json?    // AI-generated insights
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  store           Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  customer        Customer? @relation(fields: [customerId], references: [id])
+  items           OrderItem[]
+  tracking        OrderTracking[]
+}
+
+model OrderItem {
+  id          String   @id @default(cuid())
+  orderId     String
+  productId   String
+  name        String
+  price       Float
+  quantity    Int
+  total       Float
+  options     Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product     Product  @relation(fields: [productId], references: [id])
+}
+
+model OrderTracking {
+  id          String   @id @default(cuid())
+  orderId     String
+  status      String
+  carrier     String?
+  trackingNumber String?
+  estimatedDelivery DateTime?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+// Enhanced Analytics with real-time capabilities
+model Analytics {
+  id          String   @id @default(cuid())
+  storeId     String
+  date        DateTime
+  revenue     Float    @default(0)
+  orders      Int      @default(0)
+  customers   Int      @default(0)
+  pageViews   Int      @default(0)
+  conversion  Float    @default(0)
+  traffic     Int      @default(0)
+  bounceRate  Float    @default(0)
+  avgOrderValue Float   @default(0)
+  visitors   Int      @default(0)
+  anomalies   Json?    // AI-detected anomalies
+  predictions Json?    // AI predictions
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  // Relations
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  
+  @@unique([storeId, date])
+}
+
+model ApiKey {
+  id          String   @id @default(cuid())
+  name        String
+  key         String   @unique
+  storeId     String?
+  userId      String
+  isActive    Boolean  @default(true)
+  permissions Json     // array of permissions
+  rateLimit   Int      @default(1000) // requests per hour
+  lastUsed    DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  store       Store?   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Vendor model for marketplace
+model Vendor {
+  id            String    @id @default(cuid())
+  name          String
+  description   String?
+  logo          String?
+  bannerImage   String?
+  website       String?
+  email         String
+  phone         String?
+  address       String?
+  city          String?
+  state         String?
+  postalCode    String?
+  country       String?
+  commissionRate Float     @default(10)
+  status        String    @default("pending") // pending, active, suspended
+  userId        String    @unique
+  aiInsights    Json?     // AI-generated vendor insights
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Relations
+  user          User      @relation("VendorToUser", fields: [userId], references: [id], onDelete: Cascade)
+  stores        Store[]   @relation("VendorToStore")
+  products      Product[] @relation("VendorToProduct")
+  payouts       Payout[]
+}
+
+// Payout model for vendor payments
+model Payout {
+  id            String    @id @default(cuid())
+  vendorId      String
+  amount        Float
+  currency      String    @default("USD")
+  status        String    // pending, completed, failed
+  paymentMethod String?
+  reference     String?
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Relations
+  vendor        Vendor    @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+}
+
+// Review model for product reviews
+model Review {
+  id          String   @id @default(cuid())
+  productId   String
+  customerId  String
+  rating      Int
+  comment     String?
+  sentiment   String?  // AI-analyzed sentiment: positive, negative, neutral
+  isVerified  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+}
+
+// NEW AI-POWERED MODELS
+
+// AI Interactions tracking
+model AIInteraction {
+  id          String   @id @default(cuid())
+  userId      String
+  type        String   // chat, query, generation, prediction
+  input       String
+  output      String?
+  model       String?  // gpt-4, claude, etc.
+  tokens      Int?
+  cost        Float?
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Inventory Alerts with AI predictions
+model InventoryAlert {
+  id          String   @id @default(cuid())
+  storeId     String
+  productId   String?
+  type        String   // low_stock, out_of_stock, restock_prediction
+  message     String
+  severity    String   // low, medium, high, critical
+  isRead      Boolean  @default(false)
+  predictedDate DateTime? // When stock will run out
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+}
+
+// AI Pricing Suggestions
+model PricingSuggestion {
+  id          String   @id @default(cuid())
+  productId   String
+  storeId     String
+  currentPrice Float
+  suggestedPrice Float
+  reason      String   // competitor_analysis, demand_based, inventory_based
+  confidence  Float    // 0-1 confidence score
+  isApplied   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+}
+
+// Marketing Campaigns with AI generation
+model MarketingCampaign {
+  id          String   @id @default(cuid())
+  name        String
+  type        String   // email, sms, social, ads
+  storeId     String?
+  agencyId    String?
+  content     Json     // AI-generated content
+  audience    Json     // Target audience criteria
+  status      String   // draft, active, paused, completed
+  metrics     Json?    // Campaign performance metrics
+  aiGenerated Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  store       Store?   @relation(fields: [storeId], references: [id])
+  agency      Agency?  @relation(fields: [agencyId], references: [id])
+}
+
+// Wishlist functionality
+model WishlistItem {
+  id          String   @id @default(cuid())
+  customerId  String
+  productId   String
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  @@unique([customerId, productId])
+}
+
+// Support system with AI
+model SupportTicket {
+  id          String   @id @default(cuid())
+  customerId  String?
+  userId      String?
+  subject     String
+  message     String
+  status      String   // open, in_progress, resolved, closed
+  priority    String   // low, medium, high, urgent
+  aiResponse  String?  // AI-generated response
+  assignedTo  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  customer    Customer? @relation(fields: [customerId], references: [id])
+  user        User?     @relation(fields: [userId], references: [id])
+}
+
+// Audit logging for compliance
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String
+  action      String   // create, update, delete, view
+  resource    String   // product, order, customer, etc.
+  resourceId  String?
+  details     Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  user        User     @relation(fields: [userId], references: [id])
+}
