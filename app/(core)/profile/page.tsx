@@ -14,6 +14,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
 import { Key, Activity } from "lucide-react"
 import { toast } from "sonner"
+import { DashboardLayout } from "@/components/layouts/dashboard-layout"
+import Loading from "@/app/loading"
 
 interface UserProfile {
   id: string
@@ -163,21 +165,19 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="p-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="h-32 bg-gray-200 rounded"></div>
-          <div className="h-64 bg-gray-200 rounded"></div>
-        </div>
-      </div>
+    <>
+    <Loading/>
+    </>
     )
   }
 
   if (!profile) return <div>Error loading profile</div>
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
+    <DashboardLayout>
+    <div className="p-6  mx-auto space-y-6">
       {/* Header */}
+
       <div className="flex items-center space-x-4">
         <Avatar className="w-20 h-20">
           <AvatarImage src={profile.image || "/placeholder.svg"} alt={profile.name} />
@@ -433,5 +433,6 @@ export default function ProfilePage() {
         </TabsContent>
       </Tabs>
     </div>
+    </DashboardLayout>
   )
 }

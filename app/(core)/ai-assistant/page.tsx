@@ -1,7 +1,5 @@
 "use client";
 
-import type React from "react";
-
 import { useState, useEffect, useRef } from "react";
 import { DashboardLayout } from "@/components/layouts/dashboard-layout";
 import {
@@ -56,6 +54,8 @@ export default function AIAssistantPage() {
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [currentStreamingMessage, setCurrentStreamingMessage] =
+    useState<Message | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const suggestions: Suggestion[] = [
@@ -120,7 +120,7 @@ export default function AIAssistantPage() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, currentStreamingMessage]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -140,6 +140,15 @@ export default function AIAssistantPage() {
     setInputValue("");
     setIsLoading(true);
 
+    // Create a temporary assistant message for streaming
+    const streamingMessage: Message = {
+      id: `stream-${Date.now()}`,
+      type: "assistant",
+      content: "",
+      timestamp: new Date(),
+    };
+    setCurrentStreamingMessage(streamingMessage);
+
     try {
       const response = await fetch("/api/ai/chat", {
         method: "POST",
@@ -148,26 +157,79 @@ export default function AIAssistantPage() {
         },
         body: JSON.stringify({
           message: content,
-          context: "ecommerce_assistant",
+          chatHistory: messages
+            .filter((m) => m.type === "user" || m.type === "assistant")
+            .map((m) => ({ role: m.type, content: m.content })),
         }),
       });
 
-      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
+      if (!response.body) {
+        throw new Error("No response body");
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let actions: any[] = [];
+      let fullResponse = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split("\n\n").filter((line) => line.trim());
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const data = JSON.parse(line.substring(6));
+
+            if (data.content) {
+              fullResponse += data.content;
+              setCurrentStreamingMessage((prev) => ({
+                ...prev!,
+                content: fullResponse,
+              }));
+            }
+
+            if (data.actions) {
+              actions = data.actions;
+            }
+          }
+        }
+      }
+
+      // Finalize the message
       const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
+        id: Date.now().toString(),
         type: "assistant",
-        content: data.response,
+        content: fullResponse,
         timestamp: new Date(),
-        actions: data.actions,
+        actions: actions,
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
+      setCurrentStreamingMessage(null);
     } catch (error) {
       console.error("Error sending message:", error);
       toast.error("Failed to send message");
+
+      // Add error message
+      const errorMessage: Message = {
+        id: Date.now().toString(),
+        type: "assistant",
+        content:
+          "Sorry, I encountered an error processing your request. Please try again.",
+        timestamp: new Date(),
+      };
+
+      setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
+      setCurrentStreamingMessage(null);
     }
   };
 
