@@ -1,0 +1,634 @@
+"use client";
+
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardFooter,
+    CardHeader,
+    CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import {
+    BarChart3,
+    Building,
+    DollarSign,
+    Plus,
+    ShoppingCart,
+    Store,
+    Users,
+} from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { BarChart, LineChart, PieChart } from "@/components/ui/charts";
+
+interface AdminDashboardProps {
+    stats: {
+        userCount: number;
+        agencyCount: number;
+        storeCount: number;
+        orderCount: number;
+    };
+    recentAgencies: any[];
+    recentStores: any[];
+}
+
+export function AdminDashboard({
+    stats,
+    recentAgencies,
+    recentStores,
+}: AdminDashboardProps) {
+    return (
+        <div className='space-y-6 p-6'>
+            <div className='flex justify-between items-center'>
+                <h1 className='text-3xl font-bold'>Admin Dashboard</h1>
+                <div className='flex space-x-2'>
+                    <Button asChild>
+                        <Link href='/admin/agencies/create'>
+                            <Plus className='mr-2 h-4 w-4' /> Create Agency
+                        </Link>
+                    </Button>
+                    <Button variant='outline' asChild>
+                        <Link href='/admin/users/create'>Create User</Link>
+                    </Button>
+                </div>
+            </div>
+
+            <div className='grid gap-6 md:grid-cols-2 lg:grid-cols-4'>
+                <Card>
+                    <CardHeader className='flex flex-row items-center justify-between pb-2 space-y-0'>
+                        <CardTitle className='text-sm font-medium'>
+                            Total Users
+                        </CardTitle>
+                        <Users className='w-4 h-4 text-muted-foreground' />
+                    </CardHeader>
+                    <CardContent>
+                        <div className='text-2xl font-bold'>
+                            {stats.userCount}
+                        </div>
+                        <p className='text-xs text-muted-foreground'>
+                            Registered users
+                        </p>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className='flex flex-row items-center justify-between pb-2 space-y-0'>
+                        <CardTitle className='text-sm font-medium'>
+                            Total Agencies
+                        </CardTitle>
+                        <Building className='w-4 h-4 text-muted-foreground' />
+                    </CardHeader>
+                    <CardContent>
+                        <div className='text-2xl font-bold'>
+                            {stats.agencyCount}
+                        </div>
+                        <p className='text-xs text-muted-foreground'>
+                            Active agencies
+                        </p>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className='flex flex-row items-center justify-between pb-2 space-y-0'>
+                        <CardTitle className='text-sm font-medium'>
+                            Total Stores
+                        </CardTitle>
+                        <Store className='w-4 h-4 text-muted-foreground' />
+                    </CardHeader>
+                    <CardContent>
+                        <div className='text-2xl font-bold'>
+                            {stats.storeCount}
+                        </div>
+                        <p className='text-xs text-muted-foreground'>
+                            Active stores
+                        </p>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className='flex flex-row items-center justify-between pb-2 space-y-0'>
+                        <CardTitle className='text-sm font-medium'>
+                            Total Orders
+                        </CardTitle>
+                        <BarChart3 className='w-4 h-4 text-muted-foreground' />
+                    </CardHeader>
+                    <CardContent>
+                        <div className='text-2xl font-bold'>
+                            {stats.orderCount}
+                        </div>
+                        <p className='text-xs text-muted-foreground'>
+                            Across all stores
+                        </p>
+                    </CardContent>
+                </Card>
+            </div>
+
+            <Tabs defaultValue='agencies'>
+                <TabsList className='grid w-full grid-cols-6'>
+                    <TabsTrigger value='agencies'>Agencies</TabsTrigger>
+                    <TabsTrigger value='stores'>Stores</TabsTrigger>
+                    <TabsTrigger value='marketplace'>Marketplace</TabsTrigger>
+                    <TabsTrigger value='inventory'>Inventory</TabsTrigger>
+                    <TabsTrigger value='ai-insights'>AI Insights</TabsTrigger>
+                    <TabsTrigger value='analytics'>Analytics</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value='agencies' className='space-y-4 pt-4'>
+                    <div className='flex justify-between items-center'>
+                        <h2 className='text-xl font-semibold'>
+                            Recent Agencies
+                        </h2>
+                        <Button asChild>
+                            <Link href='/admin/agencies'>View All</Link>
+                        </Button>
+                    </div>
+
+                    {recentAgencies.length === 0 ? (
+                        <Card className='text-center p-10'>
+                            <CardContent className='pt-10 pb-10'>
+                                <Building className='mx-auto h-12 w-12 text-muted-foreground mb-4' />
+                                <h3 className='text-lg font-medium mb-2'>
+                                    No agencies yet
+                                </h3>
+                                <p className='text-muted-foreground mb-6'>
+                                    Create your first agency to start managing
+                                    e-commerce businesses.
+                                </p>
+                                <Button asChild>
+                                    <Link href='/admin/agencies/create'>
+                                        <Plus className='mr-2 h-4 w-4' /> Create
+                                        Agency
+                                    </Link>
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    ) : (
+                        <div className='grid gap-6 md:grid-cols-2 lg:grid-cols-3'>
+                            {recentAgencies.map((agency) => (
+                                <Card key={agency.id}>
+                                    <CardHeader>
+                                        <CardTitle>{agency.name}</CardTitle>
+                                        <CardDescription>
+                                            {agency.description ||
+                                                "No description"}
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className='space-y-2'>
+                                            <div className='flex justify-between'>
+                                                <span className='text-sm text-muted-foreground'>
+                                                    Owner:
+                                                </span>
+                                                <span className='font-medium'>
+                                                    {agency.user.name}
+                                                </span>
+                                            </div>
+                                            <div className='flex justify-between'>
+                                                <span className='text-sm text-muted-foreground'>
+                                                    Stores:
+                                                </span>
+                                                <span className='font-medium'>
+                                                    {agency._count.stores}
+                                                </span>
+                                            </div>
+                                            <div className='flex justify-between'>
+                                                <span className='text-sm text-muted-foreground'>
+                                                    Created:
+                                                </span>
+                                                <span className='font-medium'>
+                                                    {new Date(
+                                                        agency.createdAt
+                                                    ).toLocaleDateString()}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                    <CardFooter>
+                                        <Button asChild className='w-full'>
+                                            <Link
+                                                href={`/admin/agencies/${agency.id}`}
+                                            >
+                                                View Details
+                                            </Link>
+                                        </Button>
+                                    </CardFooter>
+                                </Card>
+                            ))}
+                        </div>
+                    )}
+                </TabsContent>
+
+                <TabsContent value='stores' className='space-y-4 pt-4'>
+                    <div className='flex justify-between items-center'>
+                        <h2 className='text-xl font-semibold'>Recent Stores</h2>
+                        <Button asChild>
+                            <Link href='/admin/stores'>View All</Link>
+                        </Button>
+                    </div>
+
+                    {recentStores.length === 0 ? (
+                        <Card className='text-center p-10'>
+                            <CardContent className='pt-10 pb-10'>
+                                <Store className='mx-auto h-12 w-12 text-muted-foreground mb-4' />
+                                <h3 className='text-lg font-medium mb-2'>
+                                    No stores yet
+                                </h3>
+                                <p className='text-muted-foreground mb-6'>
+                                    No stores have been created yet.
+                                </p>
+                            </CardContent>
+                        </Card>
+                    ) : (
+                        <div className='grid gap-6 md:grid-cols-2 lg:grid-cols-3'>
+                            {recentStores.map((store) => (
+                                <Card key={store.id}>
+                                    <CardHeader>
+                                        <CardTitle>{store.name}</CardTitle>
+                                        <CardDescription>
+                                            {store.description ||
+                                                "No description"}
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className='space-y-2'>
+                                            <div className='flex justify-between'>
+                                                <span className='text-sm text-muted-foreground'>
+                                                    Owner:
+                                                </span>
+                                                <span className='font-medium'>
+                                                    {store.user.name}
+                                                </span>
+                                            </div>
+                                            <div className='flex justify-between'>
+                                                <span className='text-sm text-muted-foreground'>
+                                                    Agency:
+                                                </span>
+                                                <span className='font-medium'>
+                                                    {store.agency?.name ||
+                                                        "None"}
+                                                </span>
+                                            </div>
+                                            <div className='flex justify-between'>
+                                                <span className='text-sm text-muted-foreground'>
+                                                    Products:
+                                                </span>
+                                                <span className='font-medium'>
+                                                    {store._count.products}
+                                                </span>
+                                            </div>
+                                            <div className='flex justify-between'>
+                                                <span className='text-sm text-muted-foreground'>
+                                                    Orders:
+                                                </span>
+                                                <span className='font-medium'>
+                                                    {store._count.orders}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                    <CardFooter>
+                                        <Button asChild className='w-full'>
+                                            <Link
+                                                href={`/admin/stores/${store.id}`}
+                                            >
+                                                View Details
+                                            </Link>
+                                        </Button>
+                                    </CardFooter>
+                                </Card>
+                            ))}
+                        </div>
+                    )}
+                </TabsContent>
+
+                <TabsContent value='marketplace' className='space-y-4 pt-4'>
+                    <div className='flex justify-between items-center'>
+                        <h2 className='text-xl font-semibold'>
+                            Marketplace Overview
+                        </h2>
+                        <Button asChild>
+                            <Link href='/marketplace'>View Marketplace</Link>
+                        </Button>
+                    </div>
+
+                    <div className='grid gap-6 md:grid-cols-3'>
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Total Vendors</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className='text-2xl font-bold'>45</div>
+                                <p className='text-xs text-muted-foreground'>
+                                    Active marketplace vendors
+                                </p>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Marketplace Revenue</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className='text-2xl font-bold'>
+                                    $125,430
+                                </div>
+                                <p className='text-xs text-muted-foreground'>
+                                    This month
+                                </p>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Commission Earned</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className='text-2xl font-bold'>
+                                    $12,543
+                                </div>
+                                <p className='text-xs text-muted-foreground'>
+                                    Platform commission
+                                </p>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </TabsContent>
+
+                <TabsContent value='inventory' className='space-y-4 pt-4'>
+                    <div className='flex justify-between items-center'>
+                        <h2 className='text-xl font-semibold'>
+                            Inventory Overview
+                        </h2>
+                        <Button asChild>
+                            <Link href='/inventory'>Manage Inventory</Link>
+                        </Button>
+                    </div>
+
+                    <div className='grid gap-6 md:grid-cols-3'>
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Total SKUs</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className='text-2xl font-bold'>2,345</div>
+                                <p className='text-xs text-muted-foreground'>
+                                    Across all stores
+                                </p>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Low Stock Alerts</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className='text-2xl font-bold text-orange-600'>
+                                    23
+                                </div>
+                                <p className='text-xs text-muted-foreground'>
+                                    Need attention
+                                </p>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Inventory Value</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className='text-2xl font-bold'>
+                                    $456,789
+                                </div>
+                                <p className='text-xs text-muted-foreground'>
+                                    Total inventory value
+                                </p>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </TabsContent>
+
+                <TabsContent value='ai-insights' className='space-y-4 pt-4'>
+                    <div className='flex justify-between items-center'>
+                        <h2 className='text-xl font-semibold'>AI Insights</h2>
+                        <Button asChild>
+                            <Link href='/ai-assistant'>Open AI Assistant</Link>
+                        </Button>
+                    </div>
+
+                    <div className='grid gap-6 md:grid-cols-2'>
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>AI Recommendations</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className='space-y-3'>
+                                    <div className='p-3 bg-blue-50 rounded-lg'>
+                                        <p className='text-sm font-medium'>
+                                            Pricing Optimization
+                                        </p>
+                                        <p className='text-xs text-muted-foreground'>
+                                            15 products could benefit from price
+                                            adjustments
+                                        </p>
+                                    </div>
+                                    <div className='p-3 bg-green-50 rounded-lg'>
+                                        <p className='text-sm font-medium'>
+                                            Inventory Forecast
+                                        </p>
+                                        <p className='text-xs text-muted-foreground'>
+                                            Restock 8 items before next week
+                                        </p>
+                                    </div>
+                                    <div className='p-3 bg-purple-50 rounded-lg'>
+                                        <p className='text-sm font-medium'>
+                                            Marketing Opportunity
+                                        </p>
+                                        <p className='text-xs text-muted-foreground'>
+                                            Target 234 customers for
+                                            re-engagement
+                                        </p>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>AI Usage Stats</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className='space-y-2'>
+                                    <div className='flex justify-between'>
+                                        <span className='text-sm'>
+                                            Queries Today:
+                                        </span>
+                                        <span className='font-medium'>127</span>
+                                    </div>
+                                    <div className='flex justify-between'>
+                                        <span className='text-sm'>
+                                            Actions Taken:
+                                        </span>
+                                        <span className='font-medium'>45</span>
+                                    </div>
+                                    <div className='flex justify-between'>
+                                        <span className='text-sm'>
+                                            Accuracy Rate:
+                                        </span>
+                                        <span className='font-medium'>
+                                            94.2%
+                                        </span>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </TabsContent>
+
+                <TabsContent value='analytics' className='pt-4 space-y-4'>
+                    {/* <div className='flex justify-between items-center'>
+                        <div>
+                            <h2 className='text-xl font-semibold'>
+                                Platform Analytics
+                            </h2>
+                            <p className='text-sm text-muted-foreground'>
+                                Real-time platform performance metrics
+                                {lastUpdated && (
+                                    <span className='ml-2 text-xs text-green-600'>
+                                        (Updated: {lastUpdated})
+                                    </span>
+                                )}
+                            </p>
+                        </div>
+                        <DateRangePicker
+                            onUpdate={(range) => setDateRange(range)}
+                            initialRange={dateRange}
+                        />
+                    </div>
+
+                    {isLoading ? (
+                        <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-4'>
+                            {[...Array(4)].map((_, i) => (
+                                <Skeleton key={i} className='h-32 rounded-lg' />
+                            ))}
+                        </div>
+                    ) : (
+                        <>
+                            <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-4'>
+                                <Card>
+                                    <CardHeader className='flex flex-row items-center justify-between pb-2'>
+                                        <CardTitle className='text-sm font-medium'>
+                                            Active Users
+                                        </CardTitle>
+                                        <Users className='h-4 w-4 text-muted-foreground' />
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className='text-2xl font-bold'>
+                                            {data.realTimeStats.activeUsers}
+                                        </div>
+                                        <p className='text-xs text-muted-foreground'>
+                                            +12.3% from yesterday
+                                        </p>
+                                    </CardContent>
+                                </Card>
+
+                                <Card>
+                                    <CardHeader className='flex flex-row items-center justify-between pb-2'>
+                                        <CardTitle className='text-sm font-medium'>
+                                            New Orders
+                                        </CardTitle>
+                                        <ShoppingCart className='h-4 w-4 text-muted-foreground' />
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className='text-2xl font-bold'>
+                                            {data.realTimeStats.newOrders}
+                                        </div>
+                                        <p className='text-xs text-muted-foreground'>
+                                            +8.1% from yesterday
+                                        </p>
+                                    </CardContent>
+                                </Card>
+
+                                <Card>
+                                    <CardHeader className='flex flex-row items-center justify-between pb-2'>
+                                        <CardTitle className='text-sm font-medium'>
+                                            Revenue Today
+                                        </CardTitle>
+                                        <DollarSign className='h-4 w-4 text-muted-foreground' />
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className='text-2xl font-bold'>
+                                            $
+                                            {data.realTimeStats.revenueToday.toLocaleString()}
+                                        </div>
+                                        <p className='text-xs text-muted-foreground'>
+                                            +5.7% from yesterday
+                                        </p>
+                                    </CardContent>
+                                </Card>
+
+                                <Card>
+                                    <CardHeader className='flex flex-row items-center justify-between pb-2'>
+                                        <CardTitle className='text-sm font-medium'>
+                                            Conversion Rate
+                                        </CardTitle>
+                                        <BarChart2 className='h-4 w-4 text-muted-foreground' />
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className='text-2xl font-bold'>
+                                            {data.realTimeStats.conversionRate}%
+                                        </div>
+                                        <p className='text-xs text-muted-foreground'>
+                                            +2.4% from yesterday
+                                        </p>
+                                    </CardContent>
+                                </Card>
+                            </div>
+
+                            <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-7'>
+                                <Card className='md:col-span-4'>
+                                    <CardHeader>
+                                        <CardTitle>Revenue Overview</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className='pl-2 h-80'>
+                                        <LineChart data={data.revenue} />
+                                    </CardContent>
+                                </Card>
+
+                                <Card className='md:col-span-3'>
+                                    <CardHeader>
+                                        <CardTitle>Top Products</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className='h-80'>
+                                        <PieChart data={data.topProducts} />
+                                    </CardContent>
+                                </Card>
+                            </div>
+
+                            <div className='grid gap-4 md:grid-cols-2'>
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>User Growth</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className='h-80'>
+                                        <BarChart data={data.users} />
+                                    </CardContent>
+                                </Card>
+
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Order Volume</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className='h-80'>
+                                        <BarChart data={data.orders} />
+                                    </CardContent>
+                                </Card>
+                            </div>
+                        </>
+                    )} */}
+                </TabsContent>
+            </Tabs>
+        </div>
+    );
+}
